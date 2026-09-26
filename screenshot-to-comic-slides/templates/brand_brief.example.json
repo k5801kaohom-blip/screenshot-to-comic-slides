@@ -1,0 +1,31 @@
+{
+  "brand_name": "KAOHOM",
+  "logo_path": "/absolute/path/to/logo.png",
+  "logo_position": "top-left",
+  "logo_height_px": 32,
+  "language": "zh-TW",
+  "aspect_ratio": "16:9",
+  "canvas_px": [1280, 720],
+  "palette": {
+    "navy": "#0B2136",
+    "primary_blue": "#0052CC",
+    "cyan": "#00B8D9",
+    "warm_accent": "#FFAB00",
+    "background": "#FFFFFF"
+  },
+  "visual_style": "mature corporate comic and semi-flat vector infographic",
+  "required_terms": {
+    "基站": "基地台",
+    "算法": "演算法",
+    "接口": "介面",
+    "实时": "即時"
+  },
+  "forbidden": [
+    "Simplified Chinese",
+    "childish cartoon style",
+    "text-only slides",
+    "untranslated software screenshots",
+    "distorted logo",
+    "fabricated metrics"
+  ]
+}
