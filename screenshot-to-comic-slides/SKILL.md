@@ -26,8 +26,14 @@ Choose one route before initialization:
    - Each slide becomes a full-bleed image; slide text inside the artwork is not separately editable.
    - Use the Slides image-generation lifecycle exactly: first page alone, then later pages in batches.
 
-2. **HTML/PPTX Slides — use only when editability or exact dense copy is primary**
-   - Use when every label, table cell, or paragraph must remain editable.
+2. **Illustration + editable heading PPTX — use when the user wants to retype titles**
+   - Keep every generated illustration, but expose the main title and subtitle as real,
+     editable PowerPoint text so any heading can be replaced later.
+   - Run the pipeline in "Editable headings" below. This is the standard answer to
+     requests like "keep the pictures but let me change the titles myself".
+
+3. **HTML/PPTX Slides — use only when every label and paragraph must stay editable**
+   - Use when dense copy, table cells, or all body text must be editable.
    - Generate illustration assets first, then compose them through the Slides native file authoring channel.
    - Never generate slide files through shell/Python directly inside a Slides project.
 
@@ -147,6 +153,74 @@ Regenerate only failed slides with a narrower prompt. Do not restart the whole d
   - the Slides resource link returned by `slides/present`
   - the verified absolute PPTX path when the user requested a file
 
+## Editable Headings
+
+Use this whenever the user must be able to retype headings after delivery, for example
+"change 公安辦案區 to 警察辦案區" or "replace 山東濟南 with a customer name".
+
+The illustration stays untouched; only the baked-in heading becomes live text.
+
+### 1. Locate the headings
+
+- Run `scripts/locate_titles.py` over the generated slides to get a first-pass box for every
+  title and subtitle. This pass uses a full-slide view and is only a coarse hint.
+- Run `scripts/refine_titles.py` next. It crops and upscales the upper-left region and asks a
+  stronger vision model for tight boxes. This second pass is what makes multi-line headings
+  and small subtitles reliable.
+
+```bash
+python scripts/locate_titles.py generated title_bbox.json --workers 4
+python scripts/refine_titles.py generated title_bbox.json title_bbox_refined.json --workers 3
+```
+
+### 2. Rewrite headings with an overrides file
+
+Create a JSON file keyed by slide number. Anything omitted keeps the detected text.
+
+```json
+{
+  "1": { "skip": true },
+  "24": { "title": "警察辦案區管理" },
+  "30": { "title": "XXX 智慧醫院案例" },
+  "42": { "title": "外企實驗室資產管控實驗室" }
+}
+```
+
+- `skip: true` leaves a pure-illustration slide untouched, such as a cover with only a logo.
+- A replacement that matches the original line count is laid out on the same lines.
+- A replacement with a different line count is redistributed across the original lines, so
+  two-line headings keep their two-line shape.
+
+### 3. Build the editable deck
+
+```bash
+python scripts/overlay_editable_titles.py \
+  --image-dir generated \
+  --title-json title_bbox_refined.json \
+  --overrides title_overrides.json \
+  --out-dir out \
+  --pptx KAOHOM_editable_titles.pptx \
+  --report report.json \
+  --image-format jpeg --jpeg-quality 90
+```
+
+The script erases the baked-in heading by comparing each pixel with a background estimated
+from the strips above and below the text box, so bright headings on dark artwork and
+low-contrast headings are removed alike. It then writes a text box in the same place, colour,
+size, and alignment. `--image-format jpeg` keeps the file near 28 MB instead of about 90 MB.
+
+### 4. Verify before delivery
+
+- Render the PPTX through LibreOffice and compare it with the original slides.
+- Confirm each heading box is fully clean: no leftover strokes, no clipped first character.
+- Confirm the new heading text appears on the correct line count.
+- Check that the editable text is real text, not an image, before claiming editability.
+
+### 5. Report the result honestly
+
+State clearly that headings and subtitles are editable text, while labels baked into the
+illustration are not. If the user also needs those editable, move to route 3.
+
 ## Prompt Discipline
 
 - Describe what the illustration must communicate, not only its art style.
@@ -163,6 +237,9 @@ See `references/prompt-blueprints.md` for reusable prompt structures.
 - Never deliver a text-only deck when the user asked for comic-style or visual redesign.
 - Never paste low-resolution screenshots as the main slide artwork when the user asked for redraws.
 - Never retain Simplified Chinese UI screenshots without localization or abstraction.
+- Never claim headings are editable unless `overlay_editable_titles.py` produced real text boxes.
+- Never flatten an edited heading back into the artwork; keep it as live text.
+- Never enlarge a replacement heading beyond its original box width; shrink the font instead of clipping characters.
 - Never hand-edit a Slides `project.json`.
 - Never use shell or Python to author HTML/PPTX slide files inside a Slides project; use the Slides-native lifecycle.
 - Never claim exact transcription when source text is unreadable.
@@ -172,6 +249,9 @@ See `references/prompt-blueprints.md` for reusable prompt structures.
 
 - `scripts/make_contact_sheet.py` — preserve order and create review sheets for source or generated images.
 - `scripts/extract_slide_content.py` — batch OCR, semantic extraction, and Taiwan Traditional Chinese localization.
+- `scripts/locate_titles.py` — first-pass title/subtitle box detection across all slides.
+- `scripts/refine_titles.py` — second-pass tight boxes from an upscaled crop; use before any heading rewrite.
+- `scripts/overlay_editable_titles.py` — erase baked-in headings and rebuild the deck with editable text boxes.
 - `scripts/pack_image_slides_to_pptx.py` — fallback packager for completed image-mode Slides decks.
 - `references/prompt-blueprints.md` — first-page, diagram, product, case-study, and regeneration prompt templates.
 - `templates/brand_brief.example.json` — reusable brand/style intake structure.

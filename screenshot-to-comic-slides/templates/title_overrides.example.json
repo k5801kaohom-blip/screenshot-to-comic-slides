@@ -1,0 +1,16 @@
+{
+  "_comment": "Keyed by slide number. Omit a slide to keep its detected heading. Use skip for pure-illustration slides such as a logo-only cover.",
+  "1": { "skip": true },
+  "24": { "title": "警察辦案區管理" },
+  "25": { "title": "涉案人員管理" },
+  "29": { "title": "智慧醫院狀態監控與數據傳輸" },
+  "30": { "title": "XXX 智慧醫院案例" },
+  "31": { "title": "XXX 醫院定位系統案例" },
+  "32": { "title": "XXX 醫院定位系統案例" },
+  "42": { "title": "外企實驗室資產管控案例" },
+  "44": { "title": "XX 數位化倉儲管理案例" },
+  "_subtitle_example": {
+    "title": "新的主標題",
+    "subtitle": "新的副標題"
+  }
+}
