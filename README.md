@@ -55,9 +55,13 @@ screenshot-to-comic-slides/
 ├── scripts/
 │   ├── make_contact_sheet.py           # 依序建立縮圖索引，確認頁序與完整性
 │   ├── extract_slide_content.py        # 批次 OCR、語意抽取與臺灣繁體中文在地化
+│   ├── locate_titles.py                # 全頁標題初定位
+│   ├── refine_titles.py                # 裁切放大後取得精確標題框
+│   ├── overlay_editable_titles.py      # 清除原標題並重建可編輯文字方塊
 │   └── pack_image_slides_to_pptx.py    # 匯出逾時時的 PPTX 備援封裝
 └── templates/
-    └── brand_brief.example.json        # 品牌色、LOGO 位置、術語對照範本
+    ├── brand_brief.example.json        # 品牌色、LOGO 位置、術語對照範本
+    └── title_overrides.example.json    # 標題覆寫設定範例
 ```
 
 ## 使用流程
@@ -104,6 +108,47 @@ python scripts/pack_image_slides_to_pptx.py \
 | 接口 | 介面 |
 | 實時 | 即時 |
 | 米 | 公尺（長度單位時） |
+
+
+## 可編輯大標模式（插圖保留、標題可改）
+
+當需求是「插圖都保留，但大標要能自己改」時，走這條路線。插圖完全不動，只把烘焙在圖裡的標題換成真正的 PowerPoint 文字方塊。
+
+```bash
+# 1) 全頁標題初定位
+python scripts/locate_titles.py generated title_bbox.json --workers 4
+
+# 2) 裁切放大後取得精確標題框
+python scripts/refine_titles.py generated title_bbox.json title_bbox_refined.json --workers 3
+
+# 3) 建立可編輯標題版 PPTX
+python scripts/overlay_editable_titles.py \
+  --image-dir generated \
+  --title-json title_bbox_refined.json \
+  --overrides title_overrides.json \
+  --out-dir out \
+  --pptx deck_editable_titles.pptx \
+  --report report.json \
+  --image-format jpeg --jpeg-quality 90
+```
+
+`title_overrides.json` 以頁碼為鍵，只寫要改的頁面：
+
+```json
+{
+  "1": { "skip": true },
+  "24": { "title": "警察辦案區管理" },
+  "30": { "title": "XXX 智慧醫院案例" },
+  "42": { "title": "外企實驗室資產管控案例" }
+}
+```
+
+- `skip: true` 用於純插圖頁（例如只有 LOGO 的封面）。
+- 替換文字若與原稿行數相同，會保持原本的行數配置；行數不同時會依原稿行長重新分配。
+- 清除原標題採用背景內插比對，因此深底白字與低對比標題都能一併處理。
+- `--image-format jpeg --jpeg-quality 90` 可將檔案從約 90 MB 降到約 28 MB。
+
+交付時請說明：大標與副標是可編輯文字，插圖內的標籤仍是圖像的一部分。
 
 ## 品質檢查重點
 
