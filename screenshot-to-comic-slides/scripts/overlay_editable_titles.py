@@ -30,6 +30,41 @@ DEFAULT_PX_W = 2560
 DEFAULT_PX_H = 1440
 FONT_NAME = "Microsoft JhengHei"
 
+A_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
+
+
+def set_run_font(run, size_pt, bold, color):
+    """Apply run formatting without duplicating elements.
+
+    In DrawingML each of `a:latin`, `a:ea` and `a:cs` may appear at most once inside
+    `a:rPr`, and they must keep that order. Setting `font.name` already creates `a:latin`,
+    so the East Asian and complex-script faces are inserted in order only when missing.
+    Duplicated elements make PowerPoint report the file as corrupt even though
+    LibreOffice still renders it.
+    """
+    run.font.size = Pt(round(size_pt, 1))
+    run.font.bold = bold
+    run.font.name = FONT_NAME
+    run.font.color.rgb = RGBColor(*color)
+
+    rPr = run._r.get_or_add_rPr()
+
+    def ensure(tag, after):
+        el = rPr.find(f"{{{A_NS}}}{tag}")
+        if el is not None:
+            return el
+        el = rPr.makeelement(f"{{{A_NS}}}{tag}", {"typeface": FONT_NAME})
+        anchor = rPr.find(f"{{{A_NS}}}{after}") if after else None
+        if anchor is not None:
+            anchor.addnext(el)
+        else:
+            rPr.append(el)
+        return el
+
+    ensure("latin", None)
+    ensure("ea", "latin")
+    ensure("cs", "ea")
+
 DARK_INK_THR = 168
 LIGHT_INK_THR = 175
 DARK_BG_LEVEL = 120
@@ -306,16 +341,7 @@ def add_textbox(slide, box, lines_text, color, px_w, px_h, size_pt, bold, wrap, 
         p.line_spacing = 1.0
         run = p.add_run()
         run.text = line
-        run.font.size = Pt(round(size_pt, 1))
-        run.font.bold = bold
-        run.font.name = FONT_NAME
-        run.font.color.rgb = RGBColor(*color)
-        rPr = run._r.get_or_add_rPr()
-        for tag in ("latin", "ea", "cs"):
-            rPr.append(rPr.makeelement(
-                "{http://schemas.openxmlformats.org/drawingml/2006/main}" + tag,
-                {"typeface": FONT_NAME},
-            ))
+        set_run_font(run, size_pt, bold, color)
     return shape
 
 

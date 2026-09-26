@@ -211,10 +211,28 @@ size, and alignment. `--image-format jpeg` keeps the file near 28 MB instead of 
 
 ### 4. Verify before delivery
 
+Run the strict validator first. LibreOffice renders files that PowerPoint rejects, so a
+visual check alone is never enough:
+
+```bash
+python scripts/validate_pptx.py deck_editable_titles.pptx
+```
+
+Then:
+
 - Render the PPTX through LibreOffice and compare it with the original slides.
 - Confirm each heading box is fully clean: no leftover strokes, no clipped first character.
 - Confirm the new heading text appears on the correct line count.
 - Check that the editable text is real text, not an image, before claiming editability.
+
+#### The duplicate `a:latin` trap
+
+`run.font.name = "..."` in python-pptx already creates `a:latin` inside `a:rPr`. Appending
+another `a:latin` for the East Asian face produces `<a:latin/><a:latin/><a:ea/><a:cs/>`,
+which PowerPoint reports as a corrupt file while LibreOffice still renders it correctly.
+Each of `a:latin`, `a:ea`, and `a:cs` may appear at most once and must keep that order.
+Use the `set_run_font()` helper in `overlay_editable_titles.py`, which checks for an
+existing element before inserting, and never `append` font elements blindly.
 
 ### 5. Report the result honestly
 
@@ -252,6 +270,7 @@ See `references/prompt-blueprints.md` for reusable prompt structures.
 - `scripts/locate_titles.py` — first-pass title/subtitle box detection across all slides.
 - `scripts/refine_titles.py` — second-pass tight boxes from an upscaled crop; use before any heading rewrite.
 - `scripts/overlay_editable_titles.py` — erase baked-in headings and rebuild the deck with editable text boxes.
+- `scripts/validate_pptx.py` — strict OOXML checks that catch files PowerPoint would refuse to open.
 - `scripts/pack_image_slides_to_pptx.py` — fallback packager for completed image-mode Slides decks.
 - `references/prompt-blueprints.md` — first-page, diagram, product, case-study, and regeneration prompt templates.
 - `templates/brand_brief.example.json` — reusable brand/style intake structure.
