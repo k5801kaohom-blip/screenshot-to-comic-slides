@@ -27,6 +27,12 @@ ICON = {"PASS": "pass", "FAIL": "**FAIL**", "SKIP": "skip"}
 def detect_kind(doc: dict) -> str:
     if "checks" in doc:
         return "verify"
+    if "stages" in doc:
+        return "negative_control"
+    # The import report also carries a `verdict`, so it must be recognised before the
+    # contract report. Both have a verdict; only one has documented_resources.
+    if "results" in doc and "missing_dependencies" in doc:
+        return "imports"
     if "documented_resources" in doc or "verdict" in doc:
         return "contract"
     return "unknown"
@@ -85,10 +91,37 @@ def render_negative_control(doc: dict) -> list[str]:
     return out
 
 
+def render_imports(doc: dict) -> list[str]:
+    results = doc.get("results", [])
+    failed = [r for r in results if not r.get("ok")]
+    out = [
+        f"**Verdict: {doc.get('verdict')}** — "
+        f"{doc.get('checked', 0)} shipped script(s) checked, {len(failed)} failed",
+        "",
+    ]
+    deps = doc.get("missing_dependencies") or []
+    if deps:
+        out += [
+            "Missing third-party dependencies: " + ", ".join(f"`{d}`" for d in deps),
+            "",
+            "> An uninstalled dependency is not a pass. Declare it in `requirements.txt` "
+            "so CI can install it before checking imports.",
+            "",
+        ]
+    if failed:
+        out += ["| Script | Problem |", "| --- | --- |"]
+        for r in failed:
+            out.append(f"| `{r.get('script', '')}` | {r.get('message', '')} |")
+    else:
+        out.append("Every shipped script imports in a clean environment.")
+    return out
+
+
 RENDERERS = {
     "verify": render_verify,
     "contract": render_contract,
     "negative_control": render_negative_control,
+    "imports": render_imports,
 }
 
 
@@ -103,11 +136,6 @@ def render(path: Path) -> list[str]:
         return lines + [f"_report unreadable: {exc}_", ""]
 
     kind = detect_kind(doc)
-    if kind == "verify" and "verdict" in doc and "checks" not in doc:
-        kind = "negative_control"
-    if "stages" in doc:
-        kind = "negative_control"
-
     fn = RENDERERS.get(kind)
     if fn is None:
         return lines + ["_unrecognised report shape_", ""]
