@@ -80,6 +80,27 @@ def key_for(path: Path):
     return str(int(m.group(1))) if m else path.stem
 
 
+IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tif", ".tiff"}
+
+
+def natural(name: str) -> tuple:
+    """Sort so slide 2 precedes slide 10."""
+    return tuple(int(t) if t.isdigit() else t.lower() for t in re.split(r"(\d+)", name))
+
+
+def find_images(image_dir: Path, pattern: str | None) -> list[Path]:
+    """Collect slide images, tolerating any common extension and naming scheme.
+
+    The Slides image deck writes files such as `s1_cover.webp`, while hand-saved exports
+    are often `slide_01.png`. With no --pattern, accept every image in the directory.
+    """
+    if pattern:
+        return sorted(image_dir.glob(pattern), key=lambda p: natural(p.name))
+    return sorted((p for p in image_dir.iterdir()
+                   if p.is_file() and p.suffix.lower() in IMAGE_SUFFIXES),
+                  key=lambda p: natural(p.name))
+
+
 def clamp(v, lo, hi):
     return max(lo, min(hi, v))
 
@@ -352,7 +373,8 @@ def main():
     ap.add_argument("--overrides", type=Path)
     ap.add_argument("--out-dir", type=Path, required=True)
     ap.add_argument("--pptx", type=Path, required=True)
-    ap.add_argument("--pattern", default="slide_*.png")
+    ap.add_argument("--pattern", default=None,
+                    help="glob for slide images; default: every image file in the directory")
     ap.add_argument("--report", type=Path)
     ap.add_argument("--image-format", choices=("png", "jpeg"), default="png")
     ap.add_argument("--jpeg-quality", type=int, default=90)
@@ -369,7 +391,7 @@ def main():
     blank = prs.slide_layouts[6]
 
     report = []
-    for path in sorted(args.image_dir.glob(args.pattern)):
+    for path in find_images(args.image_dir, args.pattern):
         key = key_for(path)
         hint = hints.get(path.name, {})
         override = overrides.get(key, {})
