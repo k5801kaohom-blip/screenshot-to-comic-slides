@@ -1,9 +1,17 @@
 ---
 name: screenshot-to-comic-slides
-description: Turn ordered screenshot or image sets into branded, high-resolution corporate comic/vector presentation decks in Traditional Chinese. Use when users provide multiple slide screenshots, photos, diagrams, or scanned pages and want them reconstructed in order, localized from Simplified to Traditional Chinese, visually redrawn instead of copied, branded with a logo on every slide, and delivered as a Slides resource and PPTX.
+description: 將截圖做成企業漫畫簡報。觸發詞：截圖轉簡報、截圖做簡報、漫畫簡報、漫畫式簡報、企業漫畫、資訊圖簡報、把截圖變成簡報、圖片做成簡報、簡報重新繪製、簡體轉繁體簡報、加 LOGO 的簡報、可編輯標題簡報、KAOHOM 簡報。Turn ordered screenshot or image sets into branded, high-resolution corporate comic/vector presentation decks in Traditional Chinese. Use when users provide multiple slide screenshots, photos, diagrams, or scanned pages and want them reconstructed in order, localized from Simplified to Traditional Chinese, visually redrawn instead of copied, branded with a logo on every slide, and delivered as a Slides resource and PPTX.
+metadata:
+  alias_zh-TW: 截圖轉企業漫畫簡報
+  short_alias_zh-TW: 漫畫簡報
+  keywords_zh-TW: 截圖, 簡報, 漫畫, 漫畫式, 企業漫畫, 資訊圖, 繁體中文, 簡體轉繁體, LOGO, KAOHOM, 可編輯標題, 流程圖說
 ---
 
 # Screenshot to Corporate Comic Slides
+
+**中文名稱**：截圖轉企業漫畫簡報（可簡稱「漫畫簡報」）
+
+直接說「**把截圖做成漫畫簡報**」即可觸發本技能，不需要記英文名稱。
 
 ## Goal
 
