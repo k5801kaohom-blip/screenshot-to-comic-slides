@@ -164,14 +164,26 @@ The illustration stays untouched; only the baked-in heading becomes live text.
 
 - Run `scripts/locate_titles.py` over the generated slides to get a first-pass box for every
   title and subtitle. This pass uses a full-slide view and is only a coarse hint.
-- Run `scripts/refine_titles.py` next. It crops and upscales the upper-left region and asks a
-  stronger vision model for tight boxes. This second pass is what makes multi-line headings
-  and small subtitles reliable.
+- Run `scripts/refine_titles.py` next. It crops, upscales, and asks a stronger vision model for
+  tight boxes. This second pass is what makes multi-line headings and small subtitles reliable.
 
 ```bash
 python scripts/locate_titles.py generated title_bbox.json --workers 4
 python scripts/refine_titles.py generated title_bbox.json title_bbox_refined.json --workers 3
 ```
+
+Both scripts accept any common image extension (`png`, `jpg`, `webp`, ...) and sort naturally,
+so they work directly on a Slides `generated/` directory whose files are named `s1_cover.webp`.
+Do not assume `slide_*.png`; pass `--pattern` only when the directory holds images you must
+exclude.
+
+> **Do not crop a fixed left-hand region.** An earlier version of `refine_titles.py` upscaled
+> only the left 72% of the slide. Wide, centred headings lost their trailing characters and the
+> model dutifully returned a truncated title — `病灶解剖：重複的 a:la`, `交付前四步標準作業流`
+> instead of the full text. The crop now extends to cover the coarse boxes, and
+> `recover_full_text()` falls back to the complete first-pass reading when the refined text is
+> a prefix of it. Always read the refined titles back before building the deck; a clean
+> validator run will not catch a title that is simply missing its last two characters.
 
 ### 2. Rewrite headings with an overrides file
 
@@ -233,6 +245,23 @@ which PowerPoint reports as a corrupt file while LibreOffice still renders it co
 Each of `a:latin`, `a:ea`, and `a:cs` may appear at most once and must keep that order.
 Use the `set_run_font()` helper in `overlay_editable_titles.py`, which checks for an
 existing element before inserting, and never `append` font elements blindly.
+
+#### The stale `sldSz` type trap
+
+`python-pptx`'s default template declares `sldSz type="screen4x3"`. Assigning `slide_width` and
+`slide_height` updates `cx`/`cy` but leaves that attribute untouched, so a 16:9 deck still
+announces itself as 4:3 and PowerPoint may lay the slides out for the wrong page ratio. Set the
+matching type when you set the size:
+
+```python
+from pptx.oxml.ns import qn
+sld_sz = prs._element.find(qn("p:sldSz"))
+if sld_sz is not None:
+    sld_sz.set("type", "screen16x9")
+```
+
+`validate_pptx.py` includes a `slide size consistency` check that fails when the declared type
+disagrees with the `cx`/`cy` ratio.
 
 ### 5. Report the result honestly
 

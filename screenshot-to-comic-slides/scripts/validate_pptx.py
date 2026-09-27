@@ -175,6 +175,40 @@ def check_media(z, names):
     return problems
 
 
+SLIDE_SIZES = {"screen4x3": 4 / 3, "screen16x9": 16 / 9,
+               "screen16x10": 16 / 10, "screen43": 4 / 3}
+
+
+def check_slide_size(z, names):
+    """Catch a stale sldSz type attribute.
+
+    python-pptx's default template declares sldSz type="screen4x3". Assigning slide_width
+    and slide_height updates cx/cy but leaves the attribute alone, so a 16:9 deck can still
+    claim to be 4:3 and PowerPoint may lay it out wrongly.
+    """
+    problems = []
+    if "ppt/presentation.xml" not in names:
+        return problems
+    body = z.read("ppt/presentation.xml").decode("utf-8")
+    m = re.search(r"<p:sldSz\b[^>]*>", body)
+    if not m:
+        return ["no <p:sldSz> element in presentation.xml"]
+    tag = m.group(0)
+    cx = re.search(r'cx="(\d+)"', tag)
+    cy = re.search(r'cy="(\d+)"', tag)
+    declared = re.search(r'type="([^"]+)"', tag)
+    if not (cx and cy):
+        return ["<p:sldSz> is missing cx/cy"]
+    ratio = int(cx.group(1)) / int(cy.group(1))
+    if declared:
+        expected = SLIDE_SIZES.get(declared.group(1))
+        if expected is not None and abs(ratio - expected) > 0.02:
+            problems.append(
+                f"sldSz type={declared.group(1)} disagrees with cx/cy ratio "
+                f"({ratio:.3f}); set the matching type attribute or remove it")
+    return problems
+
+
 def check_slide_refs(z, names):
     problems = []
     if "ppt/presentation.xml" not in names:
@@ -212,6 +246,7 @@ def main():
         ("rPr child order", lambda: check_rpr_order(z)),
         ("p:sp child order", lambda: check_shape_order(z)),
         ("media decodable", lambda: check_media(z, names)),
+        ("slide size consistency", lambda: check_slide_size(z, names)),
     ]
 
     failures = 0

@@ -22,6 +22,7 @@ from PIL import Image, ImageFilter
 from pptx import Presentation
 from pptx.dml.color import RGBColor
 from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
+from pptx.oxml.ns import qn
 from pptx.util import Emu, Pt
 
 SLIDE_W_IN = 40.0 / 3.0
@@ -388,6 +389,12 @@ def main():
     prs = Presentation()
     prs.slide_width = px_to_emu(DEFAULT_PX_W, DEFAULT_PX_W, SLIDE_W_IN)
     prs.slide_height = px_to_emu(DEFAULT_PX_H, DEFAULT_PX_H, SLIDE_H_IN)
+    # python-pptx's default template declares sldSz type="screen4x3". Assigning the width
+    # and height updates cx/cy but leaves that attribute stale, so a 16:9 deck would claim
+    # to be 4:3 and PowerPoint may lay the slides out incorrectly. Set the matching type.
+    sld_sz = prs._element.find(qn("p:sldSz"))
+    if sld_sz is not None:
+        sld_sz.set("type", "screen16x9")
     blank = prs.slide_layouts[6]
 
     report = []
